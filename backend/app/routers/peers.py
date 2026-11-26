@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
@@ -55,17 +56,45 @@ def _peer_to_response(peer: Peer) -> PeerResponse:
     )
 
 
-def _render_peer_config(peer: Peer, settings: Settings) -> str:
+_PACKAGE_LIST_RE = re.compile(r"^[a-zA-Z0-9_.,\s-]+$")
+
+
+def _normalize_split_apps(raw: str | None) -> str | None:
+    if not raw or not raw.strip():
+        return None
+    cleaned = ",".join(part.strip() for part in raw.split(",") if part.strip())
+    if not cleaned:
+        return None
+    if not _PACKAGE_LIST_RE.match(cleaned):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid split_tunnel_apps package list",
+        )
+    return cleaned
+
+
+def _render_peer_config(
+    peer: Peer,
+    settings: Settings,
+    *,
+    gaming_mode: bool = False,
+    split_tunnel_apps: str | None = None,
+) -> str:
+    base_mtu = peer.server.mtu or settings.WG_DEFAULT_MTU
+    mtu = min(base_mtu, 1360) if gaming_mode else base_mtu
+    dns = "1.1.1.1,8.8.8.8" if gaming_mode else (peer.server.dns_servers or settings.WG_DEFAULT_DNS)
+    keepalive = 15 if gaming_mode else settings.WG_PERSISTENT_KEEPALIVE
     return render_wg_quick_config(
         client_private_key=peer.private_key,
         assigned_ip=peer.assigned_ip,
-        dns_servers=peer.server.dns_servers or settings.WG_DEFAULT_DNS,
-        mtu=peer.server.mtu or settings.WG_DEFAULT_MTU,
+        dns_servers=dns,
+        mtu=mtu,
         server_public_key=peer.server.public_key,
         preshared_key=peer.preshared_key,
         endpoint_host=peer.server.endpoint_host,
         listen_port=peer.server.listen_port,
-        persistent_keepalive=settings.WG_PERSISTENT_KEEPALIVE,
+        persistent_keepalive=keepalive,
+        included_applications=_normalize_split_apps(split_tunnel_apps),
     )
 
 
@@ -218,7 +247,12 @@ def provision_peer(
     db.refresh(peer)
     peer.server = server
 
-    config_text = _render_peer_config(peer, settings)
+    config_text = _render_peer_config(
+        peer,
+        settings,
+        gaming_mode=payload.gaming_mode,
+        split_tunnel_apps=payload.split_tunnel_apps,
+    )
     return PeerProvisionResponse(
         peer=_peer_to_response(peer),
         client_private_key=private_key,
@@ -233,6 +267,8 @@ def get_peer_config(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
     settings: Annotated[Settings, Depends(get_settings)],
+    gaming_mode: bool = Query(default=False),
+    split_tunnel_apps: str | None = Query(default=None),
 ) -> PeerConfigResponse:
     peer = _get_owned_peer(peer_id, current_user, db)
     if not peer.is_active:
@@ -242,7 +278,12 @@ def get_peer_config(
         peer_id=peer.id,
         assigned_ip=peer.assigned_ip,
         endpoint=f"{peer.server.endpoint_host}:{peer.server.listen_port}",
-        wg_quick_config=_render_peer_config(peer, settings),
+        wg_quick_config=_render_peer_config(
+            peer,
+            settings,
+            gaming_mode=gaming_mode,
+            split_tunnel_apps=split_tunnel_apps,
+        ),
         key_custody="server_generated" if peer.private_key else "client_managed",
     )
 
@@ -253,12 +294,22 @@ def download_peer_config_raw(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
     settings: Annotated[Settings, Depends(get_settings)],
+    gaming_mode: bool = Query(default=False),
+    split_tunnel_apps: str | None = Query(default=None),
 ) -> PlainTextResponse:
     peer = _get_owned_peer(peer_id, current_user, db)
     if not peer.is_active:
         raise HTTPException(status_code=status.HTTP_410_GONE, detail="Peer has been revoked")
     headers = {"Content-Disposition": f'attachment; filename="{peer.server.slug}-{peer.id}.conf"'}
-    return PlainTextResponse(content=_render_peer_config(peer, settings), headers=headers)
+    return PlainTextResponse(
+        content=_render_peer_config(
+            peer,
+            settings,
+            gaming_mode=gaming_mode,
+            split_tunnel_apps=split_tunnel_apps,
+        ),
+        headers=headers,
+    )
 
 
 @router.get("/{peer_id}/qr")
@@ -268,11 +319,18 @@ def get_peer_qr(
     current_user: Annotated[User, Depends(get_current_user)],
     settings: Annotated[Settings, Depends(get_settings)],
     fmt: str = Query(default="png", pattern="^(png|svg)$"),
+    gaming_mode: bool = Query(default=False),
+    split_tunnel_apps: str | None = Query(default=None),
 ) -> Response:
     peer = _get_owned_peer(peer_id, current_user, db)
     if not peer.is_active:
         raise HTTPException(status_code=status.HTTP_410_GONE, detail="Peer has been revoked")
-    config_text = _render_peer_config(peer, settings)
+    config_text = _render_peer_config(
+        peer,
+        settings,
+        gaming_mode=gaming_mode,
+        split_tunnel_apps=split_tunnel_apps,
+    )
     if fmt == "svg":
         return Response(content=render_qr_svg(config_text), media_type="image/svg+xml")
     return Response(content=render_qr_png(config_text), media_type="image/png")

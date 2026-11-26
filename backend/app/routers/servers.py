@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -6,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Peer, ServerNode, User
-from app.schemas import ServerNodeCreate, ServerNodeResponse
+from app.schemas import ServerNodeCreate, ServerNodeResponse, ServerNodeUpdate
 from app.security import get_current_user, require_admin
 from app.services.wireguard import validate_wireguard_key
 
@@ -93,3 +94,38 @@ def create_server(
     db.commit()
     db.refresh(server)
     return _to_server_response(server, 0)
+
+
+@router.get("/ping")
+def ping_control_plane() -> dict[str, object]:
+    return {"ok": True, "server_time_utc": datetime.now(timezone.utc).isoformat()}
+
+
+@router.patch("/{server_id}", response_model=ServerNodeResponse)
+def update_server(
+    server_id: int,
+    payload: ServerNodeUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    _admin: Annotated[User, Depends(require_admin)],
+) -> ServerNodeResponse:
+    server = db.get(ServerNode, server_id)
+    if server is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Server node not found")
+
+    if payload.public_key is not None:
+        try:
+            server.public_key = validate_wireguard_key(payload.public_key)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+    for field in ("name", "endpoint_host", "listen_port", "dns_servers", "mtu", "latency_ms_estimate", "is_active"):
+        val = getattr(payload, field)
+        if val is not None:
+            setattr(server, field, val)
+
+    db.commit()
+    db.refresh(server)
+    active_count = db.scalar(
+        select(func.count(Peer.id)).where(Peer.server_id == server.id, Peer.is_active.is_(True))
+    ) or 0
+    return _to_server_response(server, active_count)

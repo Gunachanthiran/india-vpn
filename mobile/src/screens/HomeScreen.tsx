@@ -1,5 +1,13 @@
 import React from 'react';
-import {ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import {ConnectButton} from '../components/ConnectButton';
 import {StatusBadge} from '../components/StatusBadge';
 import {useVpn} from '../context/VpnContext';
@@ -20,6 +28,11 @@ export const HomeScreen: React.FC<{onOpenServers: () => void}> = ({
     activeProvision,
     tunnelStatus,
     connectedSeconds,
+    measuredRttMs,
+    gamingMode,
+    setGamingMode,
+    bgmiSplitTunnel,
+    setBgmiSplitTunnel,
     complianceMode,
     nativeBackendLabel,
     loading,
@@ -72,13 +85,46 @@ export const HomeScreen: React.FC<{onOpenServers: () => void}> = ({
           </Text>
           {selectedServer ? (
             <Text style={styles.selectorSub}>
-              {selectedServer.endpoint_host}:{selectedServer.listen_port} • ~
-              {selectedServer.latency_ms_estimate} ms
+              {selectedServer.endpoint_host}:{selectedServer.listen_port} •{' '}
+              {measuredRttMs !== null
+                ? `Measured ${measuredRttMs} ms`
+                : `~${selectedServer.latency_ms_estimate} ms`}
             </Text>
           ) : null}
         </View>
         <Text style={styles.changeLink}>Change</Text>
       </TouchableOpacity>
+
+      <View style={styles.toggleCard}>
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleTextBlock}>
+            <Text style={styles.toggleTitle}>BGMI Gaming Profile</Text>
+            <Text style={styles.toggleSub}>
+              MTU 1360, 15s keepalive, Anycast DNS (reduces packet loss abroad)
+            </Text>
+          </View>
+          <Switch
+            value={gamingMode}
+            onValueChange={setGamingMode}
+            disabled={tunnelStatus === 'connected' || tunnelStatus === 'connecting'}
+          />
+        </View>
+        {Platform.OS === 'android' ? (
+          <View style={[styles.toggleRow, styles.toggleDivider]}>
+            <View style={styles.toggleTextBlock}>
+              <Text style={styles.toggleTitle}>BGMI-Only Split Tunnel</Text>
+              <Text style={styles.toggleSub}>
+                Route only com.pubg.imobile via India VPN to avoid background lag
+              </Text>
+            </View>
+            <Switch
+              value={bgmiSplitTunnel}
+              onValueChange={setBgmiSplitTunnel}
+              disabled={tunnelStatus === 'connected' || tunnelStatus === 'connecting'}
+            />
+          </View>
+        ) : null}
+      </View>
 
       <View style={styles.infoGrid}>
         <View style={styles.infoCard}>
@@ -207,5 +253,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     marginTop: 6,
+  },
+  toggleCard: {
+    backgroundColor: '#111827',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#1F2937',
+    marginBottom: 14,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  toggleDivider: {
+    borderTopWidth: 1,
+    borderTopColor: '#1F2937',
+    marginTop: 12,
+    paddingTop: 12,
+  },
+  toggleTextBlock: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  toggleTitle: {
+    color: '#F8FAFC',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  toggleSub: {
+    color: '#94A3B8',
+    fontSize: 11,
+    marginTop: 2,
   },
 });

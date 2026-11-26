@@ -99,6 +99,12 @@ export class VpnApiClient {
     return this.request<ServerNode[]>('/api/v1/servers');
   }
 
+  async measureControlPlaneRttMs(): Promise<number> {
+    const start = Date.now();
+    await this.request<{ok: boolean}>('/api/v1/servers/ping');
+    return Math.max(1, Date.now() - start);
+  }
+
   async listPeers(): Promise<PeerRecord[]> {
     return this.request<PeerRecord[]>('/api/v1/peers');
   }
@@ -107,6 +113,7 @@ export class VpnApiClient {
     serverId: number,
     deviceName: string,
     clientPublicKey?: string,
+    options?: {gamingMode?: boolean; splitTunnelApps?: string},
   ): Promise<PeerProvisionResponse> {
     return this.request<PeerProvisionResponse>('/api/v1/peers', {
       method: 'POST',
@@ -114,6 +121,8 @@ export class VpnApiClient {
         server_id: serverId,
         device_name: deviceName,
         client_public_key: clientPublicKey ?? null,
+        gaming_mode: options?.gamingMode ?? false,
+        split_tunnel_apps: options?.splitTunnelApps ?? null,
       }),
     });
   }

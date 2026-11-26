@@ -140,3 +140,49 @@ def test_cert_in_compliance_audit_logging(cert_in_client: TestClient) -> None:
     logs = logs_res.json()
     event_types = {entry["event_type"] for entry in logs}
     assert {"provision", "connect"} <= event_types
+
+
+def test_gaming_mode_split_tunnel_and_server_patch(client: TestClient) -> None:
+    ping_res = client.get("/api/v1/servers/ping")
+    assert ping_res.status_code == 200
+    assert ping_res.json()["ok"] is True
+
+    user_headers = _register_and_auth(client, email="gamer@example.in")
+    admin_headers = _login_admin(client)
+    servers = client.get("/api/v1/servers", headers=user_headers).json()
+    mumbai = next(s for s in servers if s["slug"] == "in-bom-aws")
+
+    # Admin updates server with real VPS endpoint & WireGuard key
+    real_kp = generate_keypair()
+    patch_res = client.patch(
+        f"/api/v1/servers/{mumbai['id']}",
+        headers=admin_headers,
+        json={
+            "endpoint_host": "203.0.113.45",
+            "listen_port": 51820,
+            "public_key": real_kp.public_key,
+            "latency_ms_estimate": 28,
+        },
+    )
+    assert patch_res.status_code == 200
+    assert patch_res.json()["endpoint_host"] == "203.0.113.45"
+
+    # Provision peer with gaming_mode + BGMI split tunneling
+    prov = client.post(
+        "/api/v1/peers",
+        headers=user_headers,
+        json={
+            "server_id": mumbai["id"],
+            "device_name": "GamingPhone",
+            "gaming_mode": True,
+            "split_tunnel_apps": "com.pubg.imobile",
+        },
+    )
+    assert prov.status_code == 201
+    cfg = prov.json()["wg_quick_config"]
+    assert "MTU = 1360" in cfg
+    assert "PersistentKeepalive = 15" in cfg
+    assert "DNS = 1.1.1.1,8.8.8.8" in cfg
+    assert "IncludedApplications = com.pubg.imobile" in cfg
+    assert "Endpoint = 203.0.113.45:51820" in cfg
+

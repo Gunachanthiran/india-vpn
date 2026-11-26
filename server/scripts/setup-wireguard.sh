@@ -34,6 +34,16 @@ net.ipv6.conf.all.forwarding=1
 net.core.default_qdisc=fq
 net.ipv4.tcp_congestion_control=bbr
 net.ipv4.conf.all.rp_filter=1
+net.ipv4.tcp_mtu_probing=1
+
+# Gaming / real-time UDP buffer tuning to prevent micro-burst packet loss
+net.core.rmem_max=26214400
+net.core.wmem_max=26214400
+net.core.rmem_default=1048576
+net.core.wmem_default=1048576
+net.core.netdev_max_backlog=5000
+net.ipv4.udp_rmem_min=16384
+net.ipv4.udp_wmem_min=16384
 EOF
 sysctl --system
 

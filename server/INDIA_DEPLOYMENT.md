@@ -57,6 +57,19 @@ Indian telecom operators (Jio 4G/5G, Airtel, Vi) and domestic FTTH ISPs using PP
 - Our `wg0.conf.template` and `iptables-rules.sh` enable **TCP MSS clamping** (`--clamp-mss-to-pmtu`) and default to `MTU = 1420`.
 - If clients on specific mobile LTE/5G networks experience stalled TLS handshakes, lower client `MTU` to `1360` or `1280` in `WG_DEFAULT_MTU` on the backend.
 
+### Gaming / BGMI Latency Expectations Outside India
+
+> **Important physics constraint:** A VPN cannot make network packets travel faster than fiber-optic speed-of-light (~200,000 km/s). Total in-game ping equals *(Your country → India VPN server RTT)* + *(India VPN server → BGMI Mumbai server RTT)*:
+> - **UAE / Oman / GCC → Mumbai:** ~30–45 ms (within 20–45 ms target)
+> - **Singapore / Malaysia → Chennai or Mumbai:** ~45–65 ms
+> - **Europe (UK/DE) → Mumbai:** ~110–145 ms (physical minimum prevents 20–40 ms)
+> - **North America → Mumbai:** ~180–230 ms (physical minimum prevents 20–40 ms)
+
+To minimize jitter and packet loss from abroad:
+1. Host the node in **Mumbai** (closest to BGMI's Indian game servers) and keep `setup-wireguard.sh` UDP buffer tuning enabled.
+2. Enable **Gaming Mode** (`MTU = 1360`, `PersistentKeepalive = 15`) and **BGMI-Only Split Tunnel** (`IncludedApplications = com.pubg.imobile` on Android) in the mobile app so background downloads do not cause ping spikes.
+3. Prefer a non-blocklisted Indian residential/fiber IP or smaller Indian VPS ASN if BGMI flags major cloud provider ASNs.
+
 ---
 
 ## 4. Docker Compose Deployment (Control Plane + WireGuard)

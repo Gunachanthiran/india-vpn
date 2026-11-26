@@ -54,6 +54,17 @@ class ServerNodeCreate(BaseModel):
     latency_ms_estimate: int = Field(default=20, ge=1, le=1000)
 
 
+class ServerNodeUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    endpoint_host: str | None = Field(default=None, min_length=3, max_length=255)
+    listen_port: int | None = Field(default=None, ge=1, le=65535)
+    public_key: str | None = Field(default=None, min_length=40, max_length=64)
+    dns_servers: str | None = Field(default=None, max_length=120)
+    mtu: int | None = Field(default=None, ge=1280, le=1500)
+    latency_ms_estimate: int | None = Field(default=None, ge=1, le=1000)
+    is_active: bool | None = None
+
+
 class ServerNodeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -82,6 +93,15 @@ class PeerCreateRequest(BaseModel):
     client_public_key: str | None = Field(
         default=None,
         description="Optional client-generated WireGuard public key for zero-knowledge key custody.",
+    )
+    gaming_mode: bool = Field(
+        default=False,
+        description="Use low-jitter gaming profile (MTU 1360, keepalive 15s, fast Anycast DNS).",
+    )
+    split_tunnel_apps: str | None = Field(
+        default=None,
+        max_length=255,
+        description="Optional Android package list for per-app split tunneling (e.g. com.pubg.imobile).",
     )
 
 

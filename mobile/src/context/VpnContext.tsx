@@ -30,6 +30,11 @@ interface VpnContextValue {
   activeProvision: PeerProvisionResponse | null;
   tunnelStatus: TunnelStatus;
   connectedSeconds: number;
+  measuredRttMs: number | null;
+  gamingMode: boolean;
+  setGamingMode: (enabled: boolean) => void;
+  bgmiSplitTunnel: boolean;
+  setBgmiSplitTunnel: (enabled: boolean) => void;
   complianceMode: ComplianceMode;
   nativeBackendLabel: string;
   loading: boolean;
@@ -61,6 +66,11 @@ export const VpnProvider: React.FC<{children: React.ReactNode}> = ({
   const [tunnelStatus, setTunnelStatus] =
     useState<TunnelStatus>('disconnected');
   const [connectedSeconds, setConnectedSeconds] = useState(0);
+  const [measuredRttMs, setMeasuredRttMs] = useState<number | null>(null);
+  const [gamingMode, setGamingMode] = useState(true);
+  const [bgmiSplitTunnel, setBgmiSplitTunnel] = useState(
+    Platform.OS === 'android',
+  );
   const [complianceMode, setComplianceMode] =
     useState<ComplianceMode>('private');
   const [loading, setLoading] = useState(false);
@@ -97,11 +107,13 @@ export const VpnProvider: React.FC<{children: React.ReactNode}> = ({
   }, [tunnelStatus]);
 
   const loadWorkspace = useCallback(async () => {
-    const [healthInfo, serverList] = await Promise.all([
+    const [healthInfo, serverList, rttMs] = await Promise.all([
       apiRef.current.health(),
       apiRef.current.listServers(),
+      apiRef.current.measureControlPlaneRttMs().catch(() => null),
     ]);
     setComplianceMode(healthInfo.compliance_mode);
+    setMeasuredRttMs(rttMs);
     setServers(serverList);
     setSelectedServer(prev => {
       if (prev && serverList.some(s => s.id === prev.id)) {
@@ -174,10 +186,15 @@ export const VpnProvider: React.FC<{children: React.ReactNode}> = ({
     async (server: ServerNode): Promise<PeerProvisionResponse> => {
       const localKeyPair = await wgRef.current.generateKeyPair();
       const deviceLabel = `IndiaVPN-${Platform.OS}`;
+      const splitApps =
+        Platform.OS === 'android' && bgmiSplitTunnel
+          ? 'com.pubg.imobile'
+          : undefined;
       const provisioned = await apiRef.current.provisionPeer(
         server.id,
         deviceLabel,
         localKeyPair?.publicKey,
+        {gamingMode, splitTunnelApps: splitApps},
       );
 
       const finalConfig = localKeyPair
@@ -194,7 +211,7 @@ export const VpnProvider: React.FC<{children: React.ReactNode}> = ({
       setActiveProvision(resolved);
       return resolved;
     },
-    [],
+    [bgmiSplitTunnel, gamingMode],
   );
 
   const selectServer = useCallback((server: ServerNode) => {
@@ -280,6 +297,17 @@ export const VpnProvider: React.FC<{children: React.ReactNode}> = ({
       activeProvision,
       tunnelStatus,
       connectedSeconds,
+      measuredRttMs,
+      gamingMode,
+      setGamingMode: (enabled: boolean) => {
+        setGamingMode(enabled);
+        setActiveProvision(null);
+      },
+      bgmiSplitTunnel,
+      setBgmiSplitTunnel: (enabled: boolean) => {
+        setBgmiSplitTunnel(enabled);
+        setActiveProvision(null);
+      },
       complianceMode,
       nativeBackendLabel: wgRef.current.getPlatformBackendLabel(),
       loading,
@@ -302,6 +330,9 @@ export const VpnProvider: React.FC<{children: React.ReactNode}> = ({
       activeProvision,
       tunnelStatus,
       connectedSeconds,
+      measuredRttMs,
+      gamingMode,
+      bgmiSplitTunnel,
       complianceMode,
       loading,
       error,

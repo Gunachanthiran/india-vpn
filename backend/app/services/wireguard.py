@@ -74,14 +74,21 @@ def render_wg_quick_config(
     endpoint_host: str,
     listen_port: int,
     persistent_keepalive: int = 25,
+    included_applications: str | None = None,
 ) -> str:
     priv_line = client_private_key or "<INSERT_CLIENT_PRIVATE_KEY>"
+    app_line = (
+        f"IncludedApplications = {included_applications}\n"
+        if included_applications
+        else ""
+    )
     return (
         "[Interface]\n"
         f"PrivateKey = {priv_line}\n"
         f"Address = {assigned_ip}/32\n"
         f"DNS = {dns_servers}\n"
-        f"MTU = {mtu}\n\n"
+        f"MTU = {mtu}\n"
+        f"{app_line}\n"
         "[Peer]\n"
         f"PublicKey = {server_public_key}\n"
         f"PresharedKey = {preshared_key}\n"
