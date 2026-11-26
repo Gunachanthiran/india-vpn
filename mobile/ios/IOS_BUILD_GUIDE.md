@@ -21,6 +21,7 @@ npx react-native bundle --platform ios --dev false --entry-file index.js --bundl
 cd ios
 mkdir -p Vendor/build
 git clone --depth 1 https://github.com/WireGuard/wireguard-apple.git Vendor/wireguard-apple
+sed -i '' 's|swift-tools-version:5.3|swift-tools-version:5.5|' Vendor/wireguard-apple/Package.swift
 make -C Vendor/wireguard-apple/Sources/WireGuardKitGo ARCHS=arm64 PLATFORM_NAME=iphoneos IPHONEOS_DEPLOYMENT_TARGET=15.1 DESTDIR="$PWD/Vendor/build" build version-header
 
 brew install xcodegen
