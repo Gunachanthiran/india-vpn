@@ -74,8 +74,11 @@ jobs:
           else
             keytool -genkeypair -v -keystore release.keystore -storepass "opensource-build-pass" -alias indiavpn -keypass "opensource-build-pass" -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=IndiaWireGuardVPN,O=OpenSource,C=IN"
           fi
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK licenses
+        run: |
+          if [ -d "${ANDROID_HOME:-}/cmdline-tools/latest/bin" ]; then
+            yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+          fi
       - name: Setup Gradle 8.10.2
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -87,7 +90,12 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'opensource-build-pass' }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'indiavpn' }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || 'opensource-build-pass' }}
-        run: gradle assembleRelease --no-daemon --stacktrace
+        run: |
+          set -o pipefail
+          gradle assembleRelease --no-daemon --console=plain 2>&1 | tee /tmp/gradle-build.log || {
+            echo "::error::$(tail -n 30 /tmp/gradle-build.log | tr '\n' ' ')"
+            exit 1
+          }
       - name: Rename standalone APK
         run: cp mobile/android/app/build/outputs/apk/release/app-release.apk IndiaVPN-android-release.apk
       - name: Upload standalone APK artifact
