@@ -81,8 +81,10 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             EXPANDED_CODE_SIGN_IDENTITY="" \
             SWIFT_ENABLE_EXPLICIT_MODULES=NO \
+            -quiet \
             clean build 2>&1 | tee /tmp/xcodebuild.log || {
-              echo "::error::$(tail -n 35 /tmp/xcodebuild.log | tr '\n' ' ')"
+              ERRS=$(grep -E "error:|fatal error:|Undefined symbols|ld: " /tmp/xcodebuild.log | head -n 20 | tr '\n' ' ')
+              echo "::error::${ERRS:-xcodebuild failed}"
               exit 1
             }
 
