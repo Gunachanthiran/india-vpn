@@ -109,7 +109,7 @@ class WireGuardModule(private val reactContext: ReactApplicationContext) :
         }
     }
 
-    override fun onActivityResult(activity: Activity?, requestCode: Int, resultCode: Int, data: Intent?) {
+    override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode != VPN_PERMISSION_REQUEST_CODE) return
         val promise = pendingPromise ?: return
         val cfg = pendingConfig
@@ -124,5 +124,5 @@ class WireGuardModule(private val reactContext: ReactApplicationContext) :
         }
     }
 
-    override fun onNewIntent(intent: Intent?) = Unit
+    override fun onNewIntent(intent: Intent) = Unit
 }
