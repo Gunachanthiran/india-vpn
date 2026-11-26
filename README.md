@@ -17,6 +17,16 @@ A full-stack WireGuard VPN engineered for Indian deployments (Mumbai, Hyderabad,
 - **`mobile/`** — React Native (TypeScript) mobile client for Android and iOS with native WireGuard tunnel modules (`VpnService` + `com.wireguard.android:tunnel` on Android, `NEPacketTunnelProvider` + `WireGuardKit` on iOS), India server selector, connection controls, and config inspection.
 - **`.github/workflows/ci.yml`** — Free GitHub Actions CI for public repositories that runs backend tests, mobile TypeScript/Jest tests, and automatically compiles a standalone, shareable **`IndiaVPN-android-release.apk`** (no Metro or source code required to install on Android).
 
+## Quickest 2-Step Setup (No Login / No Docker / No Domain Needed)
+
+1. On any Indian Ubuntu/Debian server (or home Linux box in India with UDP `51820` forwarded):
+   ```bash
+   git clone https://github.com/Gunachanthiran/india-vpn.git /opt/india-vpn
+   cd /opt/india-vpn/server
+   sudo ./scripts/quick-vpn.sh
+   ```
+2. Install the app from **Releases**, open **Setup Config**, paste the text printed by `quick-vpn.sh`, tap **Save & Use Config**, and tap **CONNECT**.
+
 ## Zero-Cost Open-Source Distribution Flow
 
 1. **Backend & WireGuard Server (\$0):**

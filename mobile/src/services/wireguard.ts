@@ -109,3 +109,62 @@ export function injectClientPrivateKey(
 ): string {
   return wgQuickConfig.replace('<INSERT_CLIENT_PRIVATE_KEY>', privateKey);
 }
+
+export interface WgConfigSummary {
+  address: string;
+  endpoint: string;
+}
+
+export function parseWgQuickSummary(wgQuickConfig: string): WgConfigSummary {
+  const addressMatch = wgQuickConfig.match(/^\s*Address\s*=\s*(.+)$/im);
+  const endpointMatch = wgQuickConfig.match(/^\s*Endpoint\s*=\s*(.+)$/im);
+  return {
+    address: addressMatch ? addressMatch[1].trim() : '10.8.0.2/32',
+    endpoint: endpointMatch ? endpointMatch[1].trim() : 'Custom WireGuard Node',
+  };
+}
+
+export function applyGamingTweaks(
+  wgQuickConfig: string,
+  options: {gamingMode: boolean; splitTunnelApp?: string | null},
+): string {
+  let lines = wgQuickConfig
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .filter(line => !/^\s*IncludedApplications\s*=/i.test(line));
+
+  const setOrInsertInSection = (
+    sectionHeader: string,
+    key: string,
+    value: string,
+  ) => {
+    const keyRegex = new RegExp(`^\\s*${key}\\s*=`, 'i');
+    const existingIdx = lines.findIndex(l => keyRegex.test(l));
+    if (existingIdx !== -1) {
+      lines[existingIdx] = `${key} = ${value}`;
+      return;
+    }
+    const secIdx = lines.findIndex(
+      l => l.trim().toLowerCase() === sectionHeader.toLowerCase(),
+    );
+    if (secIdx !== -1) {
+      lines.splice(secIdx + 1, 0, `${key} = ${value}`);
+    }
+  };
+
+  if (options.gamingMode) {
+    setOrInsertInSection('[Interface]', 'MTU', '1360');
+    setOrInsertInSection('[Interface]', 'DNS', '1.1.1.1,8.8.8.8');
+    setOrInsertInSection('[Peer]', 'PersistentKeepalive', '15');
+  }
+
+  if (options.splitTunnelApp) {
+    setOrInsertInSection(
+      '[Interface]',
+      'IncludedApplications',
+      options.splitTunnelApp,
+    );
+  }
+
+  return `${lines.join('\n').trim()}\n`;
+}

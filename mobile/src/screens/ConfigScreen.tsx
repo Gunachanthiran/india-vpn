@@ -1,66 +1,112 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import {useVpn} from '../context/VpnContext';
 
-export const ConfigScreen: React.FC = () => {
-  const {activeProvision, rotateDeviceKeyAndReprovision, loading} = useVpn();
+export const ConfigScreen: React.FC<{onSaved?: () => void}> = ({onSaved}) => {
+  const {
+    directConfig,
+    directConfigName,
+    saveDirectConfig,
+    clearDirectConfig,
+    activeProvision,
+    rotateDeviceKeyAndReprovision,
+    loading,
+  } = useVpn();
+
+  const [label, setLabel] = useState(directConfigName);
+  const [rawText, setRawText] = useState(directConfig ?? '');
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const handleSave = () => {
+    setLocalError(null);
+    try {
+      saveDirectConfig(rawText, label);
+      onSaved?.();
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : 'Invalid config');
+    }
+  };
 
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.title}>WireGuard Tunnel Profile</Text>
+      <Text style={styles.title}>Quick India Setup (No Login Needed)</Text>
       <Text style={styles.subtitle}>
-        Active peer keys and wg-quick configuration synced from the control
-        plane.
+        Paste the WireGuard config (.conf) from your Indian server or router,
+        then tap Save & Use Config.
       </Text>
 
-      {activeProvision ? (
-        <>
-          <View style={styles.metaBox}>
-            <Text style={styles.metaLine}>
-              Device: {activeProvision.peer.device_name}
-            </Text>
-            <Text style={styles.metaLine}>
-              Gateway: {activeProvision.peer.server_name}
-            </Text>
-            <Text style={styles.metaLine}>
-              Public Key: {activeProvision.peer.public_key}
-            </Text>
-            <Text style={styles.metaLine}>
-              Assigned IP: {activeProvision.peer.assigned_ip}/32
-            </Text>
-          </View>
+      {localError ? <Text style={styles.errorText}>{localError}</Text> : null}
 
+      <Text style={styles.label}>Profile Name</Text>
+      <TextInput
+        style={styles.input}
+        value={label}
+        onChangeText={setLabel}
+        placeholder="Mumbai BGMI Node"
+        placeholderTextColor="#64748B"
+      />
+
+      <Text style={styles.label}>WireGuard Config (.conf)</Text>
+      <TextInput
+        style={[styles.input, styles.textArea]}
+        value={rawText}
+        onChangeText={setRawText}
+        multiline
+        autoCapitalize="none"
+        autoCorrect={false}
+        textAlignVertical="top"
+        placeholder={
+          '[Interface]\nPrivateKey = ...\nAddress = 10.8.0.2/32\n\n[Peer]\nPublicKey = ...\nAllowedIPs = 0.0.0.0/0\nEndpoint = <INDIA_IP>:51820'
+        }
+        placeholderTextColor="#475569"
+      />
+
+      <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+        <Text style={styles.saveBtnText}>Save & Use Config</Text>
+      </TouchableOpacity>
+
+      {directConfig ? (
+        <TouchableOpacity
+          style={styles.clearBtn}
+          onPress={() => {
+            clearDirectConfig();
+            setRawText('');
+          }}>
+          <Text style={styles.clearBtnText}>Clear Saved Direct Config</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {activeProvision ? (
+        <View style={styles.cloudBox}>
+          <Text style={styles.cloudTitle}>Active Cloud Profile</Text>
+          <Text style={styles.metaLine}>
+            Gateway: {activeProvision.peer.server_name} (
+            {activeProvision.peer.assigned_ip}/32)
+          </Text>
           <View style={styles.codeBox}>
             <Text style={styles.codeText} selectable>
               {activeProvision.wg_quick_config}
             </Text>
           </View>
-
           <TouchableOpacity
             style={styles.rotateBtn}
             onPress={rotateDeviceKeyAndReprovision}
             disabled={loading}>
             <Text style={styles.rotateBtnText}>
-              {loading ? 'Rotating...' : 'Rotate WireGuard Keys & Re-Provision'}
+              {loading ? 'Rotating...' : 'Rotate Cloud Keys'}
             </Text>
           </TouchableOpacity>
-        </>
-      ) : (
-        <View style={styles.emptyBox}>
-          <Text style={styles.emptyText}>
-            Connect to an India server first to provision a WireGuard peer
-            profile.
-          </Text>
         </View>
-      )}
+      ) : null}
     </ScrollView>
   );
 };
@@ -82,20 +128,79 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 13,
     marginTop: 4,
-    marginBottom: 16,
-  },
-  metaBox: {
-    backgroundColor: '#111827',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#1F2937',
     marginBottom: 14,
+    lineHeight: 18,
+  },
+  errorText: {
+    backgroundColor: '#450A0A',
+    color: '#FCA5A5',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+    fontSize: 13,
+  },
+  label: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: '#0F172A',
+    color: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+  },
+  textArea: {
+    minHeight: 170,
+    fontFamily: 'monospace',
+    color: '#34D399',
+  },
+  saveBtn: {
+    backgroundColor: '#FF9933',
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  saveBtnText: {
+    color: '#0F172A',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  clearBtn: {
+    backgroundColor: '#1E293B',
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  clearBtnText: {
+    color: '#94A3B8',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  cloudBox: {
+    marginTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#1F2937',
+    paddingTop: 16,
+  },
+  cloudTitle: {
+    color: '#F8FAFC',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 6,
   },
   metaLine: {
     color: '#CBD5E1',
     fontSize: 12,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   codeBox: {
     backgroundColor: '#020617',
@@ -113,27 +218,15 @@ const styles = StyleSheet.create({
   rotateBtn: {
     backgroundColor: '#1E293B',
     borderRadius: 10,
-    paddingVertical: 13,
+    paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: '#FF9933',
   },
   rotateBtnText: {
     color: '#FF9933',
     fontWeight: '700',
-    fontSize: 14,
-  },
-  emptyBox: {
-    backgroundColor: '#111827',
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#1F2937',
-  },
-  emptyText: {
-    color: '#94A3B8',
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
   },
 });

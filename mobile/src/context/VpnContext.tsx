@@ -10,7 +10,9 @@ import React, {
 import {Platform} from 'react-native';
 import {VpnApiClient} from '../services/api';
 import {
+  applyGamingTweaks,
   injectClientPrivateKey,
+  parseWgQuickSummary,
   WireGuardTunnelService,
 } from '../services/wireguard';
 import {
@@ -28,6 +30,10 @@ interface VpnContextValue {
   servers: ServerNode[];
   selectedServer: ServerNode | null;
   activeProvision: PeerProvisionResponse | null;
+  directConfig: string | null;
+  directConfigName: string;
+  saveDirectConfig: (configText: string, label?: string) => void;
+  clearDirectConfig: () => void;
   tunnelStatus: TunnelStatus;
   connectedSeconds: number;
   measuredRttMs: number | null;
@@ -63,6 +69,10 @@ export const VpnProvider: React.FC<{children: React.ReactNode}> = ({
   const [selectedServer, setSelectedServer] = useState<ServerNode | null>(null);
   const [activeProvision, setActiveProvision] =
     useState<PeerProvisionResponse | null>(null);
+  const [directConfig, setDirectConfig] = useState<string | null>(null);
+  const [directConfigName, setDirectConfigName] = useState<string>(
+    'India WireGuard Node',
+  );
   const [tunnelStatus, setTunnelStatus] =
     useState<TunnelStatus>('disconnected');
   const [connectedSeconds, setConnectedSeconds] = useState(0);
@@ -218,6 +228,23 @@ export const VpnProvider: React.FC<{children: React.ReactNode}> = ({
     setSelectedServer(server);
   }, []);
 
+  const saveDirectConfig = useCallback((configText: string, label?: string) => {
+    const trimmed = configText.trim();
+    if (!trimmed.includes('[Interface]') || !trimmed.includes('[Peer]')) {
+      throw new Error(
+        'Invalid WireGuard config. Must contain [Interface] and [Peer] sections.',
+      );
+    }
+    const summary = parseWgQuickSummary(trimmed);
+    setDirectConfig(`${trimmed}\n`);
+    setDirectConfigName(label?.trim() || `India (${summary.endpoint})`);
+    setError(null);
+  }, []);
+
+  const clearDirectConfig = useCallback(() => {
+    setDirectConfig(null);
+  }, []);
+
   const toggleConnection = useCallback(async () => {
     setError(null);
     if (tunnelStatus === 'connected' || tunnelStatus === 'connecting') {
@@ -237,8 +264,33 @@ export const VpnProvider: React.FC<{children: React.ReactNode}> = ({
       return;
     }
 
+    // Mode A: Standalone Direct WireGuard Config (no backend / login required)
+    if (directConfig) {
+      setLoading(true);
+      setTunnelStatus('connecting');
+      try {
+        const splitApp =
+          Platform.OS === 'android' && bgmiSplitTunnel
+            ? 'com.pubg.imobile'
+            : null;
+        const preparedConfig = applyGamingTweaks(directConfig, {
+          gamingMode,
+          splitTunnelApp: splitApp,
+        });
+        await wgRef.current.connect(preparedConfig, 'india-direct-wg0');
+        setTunnelStatus('connected');
+      } catch (err) {
+        setTunnelStatus('error');
+        setError(err instanceof Error ? err.message : 'Tunnel connection failed');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Mode B: Cloud Control Plane mode
     if (!selectedServer) {
-      setError('Select an India server node first.');
+      setError('Paste a WireGuard config in Setup or sign in to a server first.');
       return;
     }
 
@@ -263,7 +315,15 @@ export const VpnProvider: React.FC<{children: React.ReactNode}> = ({
     } finally {
       setLoading(false);
     }
-  }, [activeProvision, provisionForServer, selectedServer, tunnelStatus]);
+  }, [
+    activeProvision,
+    bgmiSplitTunnel,
+    directConfig,
+    gamingMode,
+    provisionForServer,
+    selectedServer,
+    tunnelStatus,
+  ]);
 
   const rotateDeviceKeyAndReprovision = useCallback(async () => {
     if (!selectedServer) {
@@ -295,6 +355,10 @@ export const VpnProvider: React.FC<{children: React.ReactNode}> = ({
       servers,
       selectedServer,
       activeProvision,
+      directConfig,
+      directConfigName,
+      saveDirectConfig,
+      clearDirectConfig,
       tunnelStatus,
       connectedSeconds,
       measuredRttMs,
@@ -328,6 +392,10 @@ export const VpnProvider: React.FC<{children: React.ReactNode}> = ({
       servers,
       selectedServer,
       activeProvision,
+      directConfig,
+      directConfigName,
+      saveDirectConfig,
+      clearDirectConfig,
       tunnelStatus,
       connectedSeconds,
       measuredRttMs,

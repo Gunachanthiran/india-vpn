@@ -1,5 +1,7 @@
 import {
+  applyGamingTweaks,
   injectClientPrivateKey,
+  parseWgQuickSummary,
   WireGuardTunnelService,
 } from '../services/wireguard';
 import {WireGuardNativeBridge} from '../types/vpn';
@@ -66,5 +68,22 @@ describe('WireGuardTunnelService', () => {
     expect(await svc.getStatus()).toBe('connected');
     await svc.disconnect();
     expect(mockBridge.disconnect).toHaveBeenCalled();
+  });
+
+  it('parses endpoint/address and applies BGMI gaming tweaks to pasted config', () => {
+    const summary = parseWgQuickSummary(SAMPLE_CONFIG);
+    expect(summary).toEqual({
+      address: '10.8.0.2/32',
+      endpoint: 'bom1.indiavpn.example.com:51820',
+    });
+
+    const tweaked = applyGamingTweaks(SAMPLE_CONFIG, {
+      gamingMode: true,
+      splitTunnelApp: 'com.pubg.imobile',
+    });
+    expect(tweaked).toContain('MTU = 1360');
+    expect(tweaked).toContain('DNS = 1.1.1.1,8.8.8.8');
+    expect(tweaked).toContain('PersistentKeepalive = 15');
+    expect(tweaked).toContain('IncludedApplications = com.pubg.imobile');
   });
 });

@@ -11,6 +11,7 @@ import {
 import {ConnectButton} from '../components/ConnectButton';
 import {StatusBadge} from '../components/StatusBadge';
 import {useVpn} from '../context/VpnContext';
+import {parseWgQuickSummary} from '../services/wireguard';
 
 function formatDuration(totalSeconds: number): string {
   const hrs = Math.floor(totalSeconds / 3600);
@@ -19,13 +20,16 @@ function formatDuration(totalSeconds: number): string {
   return [hrs, mins, secs].map(n => String(n).padStart(2, '0')).join(':');
 }
 
-export const HomeScreen: React.FC<{onOpenServers: () => void}> = ({
-  onOpenServers,
-}) => {
+export const HomeScreen: React.FC<{
+  onOpenSetup: () => void;
+  onOpenServers: () => void;
+}> = ({onOpenSetup, onOpenServers}) => {
   const {
     user,
     selectedServer,
     activeProvision,
+    directConfig,
+    directConfigName,
     tunnelStatus,
     connectedSeconds,
     measuredRttMs,
@@ -41,18 +45,33 @@ export const HomeScreen: React.FC<{onOpenServers: () => void}> = ({
     signOut,
   } = useVpn();
 
+  const directSummary = directConfig ? parseWgQuickSummary(directConfig) : null;
+  const hasAnyProfile = Boolean(directConfig || selectedServer);
+
+  const handlePrimaryPress = () => {
+    if (!hasAnyProfile && tunnelStatus === 'disconnected') {
+      onOpenSetup();
+      return;
+    }
+    toggleConnection();
+  };
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}>
       <View style={styles.topBar}>
         <View>
-          <Text style={styles.greeting}>Namaste, {user?.full_name}</Text>
+          <Text style={styles.greeting}>
+            {user ? `Namaste, ${user.full_name}` : 'India WireGuard VPN'}
+          </Text>
           <Text style={styles.backendTag}>{nativeBackendLabel}</Text>
         </View>
-        <TouchableOpacity onPress={signOut} style={styles.signOutBtn}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
+        {user ? (
+          <TouchableOpacity onPress={signOut} style={styles.signOutBtn}>
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <StatusBadge status={tunnelStatus} />
@@ -66,33 +85,46 @@ export const HomeScreen: React.FC<{onOpenServers: () => void}> = ({
       <ConnectButton
         status={tunnelStatus}
         loading={loading}
-        onPress={toggleConnection}
+        onPress={handlePrimaryPress}
       />
 
       <Text style={styles.timer}>
         {tunnelStatus === 'connected'
           ? `Session Duration: ${formatDuration(connectedSeconds)}`
-          : 'Tunnel Idle'}
+          : hasAnyProfile
+            ? 'Ready to Connect'
+            : 'Tap Connect or Setup Config to paste your India .conf'}
       </Text>
 
-      <TouchableOpacity style={styles.serverSelector} onPress={onOpenServers}>
-        <View>
-          <Text style={styles.selectorLabel}>ACTIVE INDIA GATEWAY</Text>
-          <Text style={styles.selectorValue}>
-            {selectedServer
-              ? `${selectedServer.city} (${selectedServer.provider})`
-              : 'Tap to choose an India node'}
+      <TouchableOpacity
+        style={styles.serverSelector}
+        onPress={directConfig || !user ? onOpenSetup : onOpenServers}>
+        <View style={styles.selectorTextWrap}>
+          <Text style={styles.selectorLabel}>
+            {directConfig ? 'DIRECT WIREGUARD PROFILE' : 'ACTIVE INDIA GATEWAY'}
           </Text>
-          {selectedServer ? (
-            <Text style={styles.selectorSub}>
-              {selectedServer.endpoint_host}:{selectedServer.listen_port} •{' '}
-              {measuredRttMs !== null
-                ? `Measured ${measuredRttMs} ms`
-                : `~${selectedServer.latency_ms_estimate} ms`}
-            </Text>
-          ) : null}
+          <Text style={styles.selectorValue}>
+            {directConfig
+              ? directConfigName
+              : selectedServer
+                ? `${selectedServer.city} (${selectedServer.provider})`
+                : 'No server configured yet'}
+          </Text>
+          <Text style={styles.selectorSub}>
+            {directSummary
+              ? `${directSummary.endpoint} • ${directSummary.address}`
+              : selectedServer
+                ? `${selectedServer.endpoint_host}:${selectedServer.listen_port} • ${
+                    measuredRttMs !== null
+                      ? `Measured ${measuredRttMs} ms`
+                      : `~${selectedServer.latency_ms_estimate} ms`
+                  }`
+                : 'Tap here to paste a WireGuard config (no login needed)'}
+          </Text>
         </View>
-        <Text style={styles.changeLink}>Change</Text>
+        <Text style={styles.changeLink}>
+          {hasAnyProfile ? 'Change' : 'Setup'}
+        </Text>
       </TouchableOpacity>
 
       <View style={styles.toggleCard}>
@@ -100,7 +132,7 @@ export const HomeScreen: React.FC<{onOpenServers: () => void}> = ({
           <View style={styles.toggleTextBlock}>
             <Text style={styles.toggleTitle}>BGMI Gaming Profile</Text>
             <Text style={styles.toggleSub}>
-              MTU 1360, 15s keepalive, Anycast DNS (reduces packet loss abroad)
+              MTU 1360, 15s keepalive, fast DNS (reduces packet loss abroad)
             </Text>
           </View>
           <Switch
@@ -120,7 +152,9 @@ export const HomeScreen: React.FC<{onOpenServers: () => void}> = ({
             <Switch
               value={bgmiSplitTunnel}
               onValueChange={setBgmiSplitTunnel}
-              disabled={tunnelStatus === 'connected' || tunnelStatus === 'connecting'}
+              disabled={
+                tunnelStatus === 'connected' || tunnelStatus === 'connecting'
+              }
             />
           </View>
         ) : null}
@@ -130,15 +164,19 @@ export const HomeScreen: React.FC<{onOpenServers: () => void}> = ({
         <View style={styles.infoCard}>
           <Text style={styles.infoLabel}>Assigned Tunnel IP</Text>
           <Text style={styles.infoValue}>
-            {activeProvision?.peer.assigned_ip ?? 'Auto on connect'}
+            {directSummary?.address ??
+              activeProvision?.peer.assigned_ip ??
+              'Auto on connect'}
           </Text>
         </View>
         <View style={styles.infoCard}>
-          <Text style={styles.infoLabel}>Compliance Policy</Text>
+          <Text style={styles.infoLabel}>Mode</Text>
           <Text style={styles.infoValue}>
-            {complianceMode === 'cert_in_audit'
-              ? 'CERT-In Audit (5Y)'
-              : 'Private (Zero-Log)'}
+            {directConfig
+              ? 'Direct (Zero-Backend)'
+              : complianceMode === 'cert_in_audit'
+                ? 'Cloud (CERT-In)'
+                : 'Cloud (Zero-Log)'}
           </Text>
         </View>
       </View>
@@ -163,7 +201,7 @@ const styles = StyleSheet.create({
   greeting: {
     color: '#F8FAFC',
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   backendTag: {
     color: '#64748B',
@@ -194,7 +232,7 @@ const styles = StyleSheet.create({
   timer: {
     color: '#94A3B8',
     textAlign: 'center',
-    fontSize: 14,
+    fontSize: 13,
     marginBottom: 20,
     fontVariant: ['tabular-nums'],
   },
@@ -208,6 +246,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 14,
+  },
+  selectorTextWrap: {
+    flex: 1,
+    paddingRight: 10,
   },
   selectorLabel: {
     color: '#FF9933',
@@ -230,29 +272,6 @@ const styles = StyleSheet.create({
     color: '#38BDF8',
     fontWeight: '700',
     fontSize: 13,
-  },
-  infoGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  infoCard: {
-    flex: 1,
-    backgroundColor: '#111827',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#1F2937',
-  },
-  infoLabel: {
-    color: '#94A3B8',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  infoValue: {
-    color: '#F8FAFC',
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 6,
   },
   toggleCard: {
     backgroundColor: '#111827',
@@ -286,5 +305,28 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 11,
     marginTop: 2,
+  },
+  infoGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  infoCard: {
+    flex: 1,
+    backgroundColor: '#111827',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#1F2937',
+  },
+  infoLabel: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  infoValue: {
+    color: '#F8FAFC',
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 6,
   },
 });

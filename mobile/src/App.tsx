@@ -13,30 +13,35 @@ import {ConfigScreen} from './screens/ConfigScreen';
 import {HomeScreen} from './screens/HomeScreen';
 import {ServersScreen} from './screens/ServersScreen';
 
-type Tab = 'home' | 'servers' | 'config';
+type Tab = 'home' | 'setup' | 'cloud';
 
 const MainShell: React.FC = () => {
   const {user} = useVpn();
   const [tab, setTab] = useState<Tab>('home');
 
-  if (!user) {
-    return <AuthScreen />;
-  }
-
   return (
     <View style={styles.shell}>
       <View style={styles.body}>
         {tab === 'home' ? (
-          <HomeScreen onOpenServers={() => setTab('servers')} />
+          <HomeScreen
+            onOpenSetup={() => setTab('setup')}
+            onOpenServers={() => setTab('cloud')}
+          />
         ) : null}
-        {tab === 'servers' ? (
-          <ServersScreen onSelectDone={() => setTab('home')} />
+        {tab === 'setup' ? (
+          <ConfigScreen onSaved={() => setTab('home')} />
         ) : null}
-        {tab === 'config' ? <ConfigScreen /> : null}
+        {tab === 'cloud' ? (
+          user ? (
+            <ServersScreen onSelectDone={() => setTab('home')} />
+          ) : (
+            <AuthScreen />
+          )
+        ) : null}
       </View>
 
       <View style={styles.tabBar}>
-        {(['home', 'servers', 'config'] as Tab[]).map(item => (
+        {(['home', 'setup', 'cloud'] as Tab[]).map(item => (
           <TouchableOpacity
             key={item}
             style={[styles.tabItem, tab === item && styles.activeTab]}
@@ -44,10 +49,10 @@ const MainShell: React.FC = () => {
             <Text
               style={[styles.tabText, tab === item && styles.activeTabText]}>
               {item === 'home'
-                ? 'Tunnel'
-                : item === 'servers'
-                  ? 'India Nodes'
-                  : 'Profile'}
+                ? 'Connect'
+                : item === 'setup'
+                  ? 'Setup Config'
+                  : 'Cloud (Opt.)'}
             </Text>
           </TouchableOpacity>
         ))}
