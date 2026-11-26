@@ -25,6 +25,11 @@ mobile/android/local.properties
 *.jks
 *.keystore
 mobile/ios/Pods/
+mobile/ios/Vendor/
+mobile/ios/*.xcodeproj/
+mobile/ios/*.xcworkspace/
+mobile/ios/main.jsbundle
+mobile/ios/assets/
 mobile/ios/build/
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/

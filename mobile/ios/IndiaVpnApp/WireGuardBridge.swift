@@ -1,7 +1,6 @@
 import Foundation
 import NetworkExtension
 import CryptoKit
-import React
 
 @objc(WireGuardTunnel)
 class WireGuardBridge: RCTEventEmitter {

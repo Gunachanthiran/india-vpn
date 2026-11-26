@@ -1,0 +1,61 @@
+name: IndiaVpnApp
+options:
+  bundleIdPrefix: com.indiavpn
+  deploymentTarget:
+    iOS: "15.1"
+  xcodeVersion: "16.0"
+
+packages:
+  WireGuardKit:
+    path: Vendor/wireguard-apple
+
+targets:
+  IndiaVpnApp:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.1"
+    sources:
+      - path: IndiaVpnApp
+      - path: main.jsbundle
+        optional: true
+        buildPhase: resources
+    info:
+      path: IndiaVpnApp/Info.plist
+    entitlements:
+      path: IndiaVpnApp/IndiaVpnApp.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.indiavpn.mobile
+        SWIFT_VERSION: "5.0"
+        SWIFT_OBJC_BRIDGING_HEADER: IndiaVpnApp/IndiaVpnApp-Bridging-Header.h
+        CLANG_CXX_LANGUAGE_STANDARD: c++20
+        ENABLE_BITCODE: NO
+    dependencies:
+      - target: IndiaVpnExtension
+        embed: true
+
+  IndiaVpnExtension:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "15.1"
+    sources:
+      - path: IndiaVpnExtension
+    info:
+      path: IndiaVpnExtension/Info.plist
+    entitlements:
+      path: IndiaVpnExtension/IndiaVpnExtension.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.indiavpn.mobile.network-extension
+        SWIFT_VERSION: "5.0"
+        ENABLE_BITCODE: NO
+        LIBRARY_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(SRCROOT)/Vendor/build"
+        HEADER_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(SRCROOT)/Vendor/build"
+    dependencies:
+      - sdk: NetworkExtension.framework
+      - package: WireGuardKit
+        product: WireGuardKit
