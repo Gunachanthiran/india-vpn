@@ -1,0 +1,12 @@
+[Interface]
+PrivateKey = {{CLIENT_PRIVATE_KEY}}
+Address = {{CLIENT_ADDRESS_V4}}/32
+DNS = {{WG_DNS}}
+MTU = {{WG_MTU}}
+
+[Peer]
+PublicKey = {{SERVER_PUBLIC_KEY}}
+PresharedKey = {{PRESHARED_KEY}}
+AllowedIPs = 0.0.0.0/0, ::/0
+Endpoint = {{SERVER_ENDPOINT}}:{{WG_PORT}}
+PersistentKeepalive = 25

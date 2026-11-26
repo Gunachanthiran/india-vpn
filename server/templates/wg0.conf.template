@@ -1,0 +1,10 @@
+[Interface]
+Address = {{WG_ADDRESS_V4}}, {{WG_ADDRESS_V6}}
+ListenPort = {{WG_PORT}}
+PrivateKey = {{SERVER_PRIVATE_KEY}}
+MTU = {{WG_MTU}}
+SaveConfig = false
+
+# Enable forwarding, NAT masquerade, and TCP MSS clamping for mobile networks (Jio/Airtel/VI)
+PostUp = /etc/wireguard/firewall/iptables-rules.sh up {{WG_INTERFACE}} {{WAN_INTERFACE}} {{WG_PORT}}
+PostDown = /etc/wireguard/firewall/iptables-rules.sh down {{WG_INTERFACE}} {{WAN_INTERFACE}} {{WG_PORT}}

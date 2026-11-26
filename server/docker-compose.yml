@@ -1,0 +1,74 @@
+services:
+  wireguard:
+    image: lscr.io/linuxserver/wireguard:latest
+    container_name: india-vpn-wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Kolkata
+      - SERVERURL=${WG_PUBLIC_ENDPOINT:-auto}
+      - SERVERPORT=${WG_PORT:-51820}
+      - PEERS=0
+      - INTERNAL_SUBNET=10.8.0.0
+      - ALLOWEDIPS=0.0.0.0/0, ::/0
+    volumes:
+      - wg_config:/config
+      - /lib/modules:/lib/modules:ro
+    ports:
+      - "${WG_PORT:-51820}:51820/udp"
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.ip_forward=1
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: india-vpn-backend
+    environment:
+      - DATABASE_URL=sqlite:////data/india_vpn.db
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
+      - COMPLIANCE_MODE=${COMPLIANCE_MODE:-private}
+      - WG_DRIVER=${WG_DRIVER:-mock}
+      - WG_INTERFACE=${WG_INTERFACE:-wg0}
+      - SEED_DEFAULT_SERVERS=true
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@indiavpn.example.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-ChangeMe123!}
+    volumes:
+      - backend_data:/data
+      - wg_config:/etc/wireguard
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: india-vpn-caddy
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - API_DOMAIN=${API_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  wg_config:
+  backend_data:
+  caddy_data:
+  caddy_config:

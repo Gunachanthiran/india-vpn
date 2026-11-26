@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+*.db
+*.sqlite3
+
+# Node / React Native
+node_modules/
+mobile/node_modules/
+.expo/
+dist/
+build/
+
+# Android / iOS native build artifacts
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/local.properties
+*.apk
+*.aab
+*.ipa
+*.jks
+*.keystore
+mobile/ios/Pods/
+mobile/ios/build/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# Environment & secrets
+.env
+*.env.local
+server/keys/
+*.key
+*.pem
+wg0.conf
