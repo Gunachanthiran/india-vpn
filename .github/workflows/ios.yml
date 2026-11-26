@@ -92,13 +92,15 @@ jobs:
           test -d "${APP_PATH}"
           mkdir -p build/Payload
           cp -R "${APP_PATH}" build/Payload/
-          (cd build && zip -r ../../IndiaVPN-ios-unsigned.ipa Payload)
+          (cd build && zip -r ../../../IndiaVPN-ios-unsigned.ipa Payload)
+          test -f ../../IndiaVPN-ios-unsigned.ipa
 
       - name: Upload unsigned iOS IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: IndiaVPN-ios-unsigned-ipa
           path: IndiaVPN-ios-unsigned.ipa
+          if-no-files-found: error
 
       - name: Attach iOS IPA to GitHub Release on version tags
         if: startsWith(github.ref, 'refs/tags/v')
