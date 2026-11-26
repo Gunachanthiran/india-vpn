@@ -2,6 +2,14 @@
 
 **License:** [MIT](LICENSE) — 100% free and open source.
 
+## Download Standalone Apps (Releases)
+
+Install directly without downloading or building source code:
+
+- **All Releases:** https://github.com/Gunachanthiran/india-vpn/releases/latest
+- **Android App (`.apk`):** [Download `IndiaVPN-android-release.apk`](https://github.com/Gunachanthiran/india-vpn/releases/latest/download/IndiaVPN-android-release.apk)
+- **iOS App (unsigned `.ipa`):** [Download `IndiaVPN-ios-unsigned.ipa`](https://github.com/Gunachanthiran/india-vpn/releases/latest/download/IndiaVPN-ios-unsigned.ipa) *(requires Apple signing / sideloading; iPhone users without a developer account can also scan the backend QR code with the free official WireGuard App Store client)*
+
 A full-stack WireGuard VPN engineered for Indian deployments (Mumbai, Hyderabad, Bangalore, Delhi NCR, Chennai), comprising:
 
 - **`server/`** — Ubuntu/Debian WireGuard host provisioning scripts, `wg0.conf` templates, `iptables`/`nftables` NAT & firewall rules, Docker Compose stack, and an India cloud deployment & CERT-In compliance guide (including **\$0 Always Free** Oracle Cloud Mumbai/Hyderabad options).
