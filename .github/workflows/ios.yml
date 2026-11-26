@@ -83,7 +83,7 @@ jobs:
             SWIFT_ENABLE_EXPLICIT_MODULES=NO \
             -quiet \
             clean build 2>&1 | tee /tmp/xcodebuild.log || {
-              ERRS=$(grep -E "error:|fatal error:|Undefined symbols|ld: " /tmp/xcodebuild.log | head -n 20 | tr '\n' ' ')
+              ERRS=$(grep -A 6 -E "Undefined symbols|error:|fatal error:|ld: " /tmp/xcodebuild.log | head -n 35 | tr '\n' ' ')
               echo "::error::${ERRS:-xcodebuild failed}"
               exit 1
             }
