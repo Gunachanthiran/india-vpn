@@ -2,7 +2,7 @@ import Foundation
 import NetworkExtension
 import CryptoKit
 
-@objc(WireGuardTunnel)
+@objc(WireGuardBridge)
 class WireGuardBridge: RCTEventEmitter {
   private static let tunnelBundleId = "com.indiavpn.mobile.network-extension"
   private var hasListeners = false
