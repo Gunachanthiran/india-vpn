@@ -49,6 +49,9 @@ jobs:
           mkdir -p Vendor/build
           git clone --depth 1 https://github.com/WireGuard/wireguard-apple.git Vendor/wireguard-apple
           sed -i '' 's|swift-tools-version:5.3|swift-tools-version:5.5|' Vendor/wireguard-apple/Package.swift
+          sed -i '' '1i\
+#include <sys/types.h>
+' Vendor/wireguard-apple/Sources/WireGuardKitC/WireGuardKitC.h
           make -C Vendor/wireguard-apple/Sources/WireGuardKitGo \
             ARCHS="arm64" \
             PLATFORM_NAME="iphoneos" \
@@ -79,6 +82,7 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             EXPANDED_CODE_SIGN_IDENTITY="" \
+            SWIFT_ENABLE_EXPLICIT_MODULES=NO \
             clean build 2>&1 | tee /tmp/xcodebuild.log || {
               echo "::error::$(tail -n 35 /tmp/xcodebuild.log | tr '\n' ' ')"
               exit 1
