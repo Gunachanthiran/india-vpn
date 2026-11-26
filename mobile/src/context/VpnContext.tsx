@@ -96,13 +96,27 @@ export const VpnProvider: React.FC<{children: React.ReactNode}> = ({
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+    wgRef.current
+      .loadStoredConfig()
+      .then(stored => {
+        if (mounted && stored) {
+          setDirectConfig(stored.configText);
+          setDirectConfigName(stored.label);
+        }
+      })
+      .catch(() => undefined);
+
     const unsubscribe = wgRef.current.subscribeStatus(evt => {
       setTunnelStatus(evt.status);
       if (evt.error) {
         setError(evt.error);
       }
     });
-    return unsubscribe;
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -236,13 +250,19 @@ export const VpnProvider: React.FC<{children: React.ReactNode}> = ({
       );
     }
     const summary = parseWgQuickSummary(trimmed);
-    setDirectConfig(`${trimmed}\n`);
-    setDirectConfigName(label?.trim() || `India (${summary.endpoint})`);
+    const resolvedConfig = `${trimmed}\n`;
+    const resolvedLabel = label?.trim() || `India (${summary.endpoint})`;
+    setDirectConfig(resolvedConfig);
+    setDirectConfigName(resolvedLabel);
     setError(null);
+    wgRef.current
+      .saveStoredConfig(resolvedConfig, resolvedLabel)
+      .catch(() => undefined);
   }, []);
 
   const clearDirectConfig = useCallback(() => {
     setDirectConfig(null);
+    wgRef.current.clearStoredConfig().catch(() => undefined);
   }, []);
 
   const toggleConnection = useCallback(async () => {

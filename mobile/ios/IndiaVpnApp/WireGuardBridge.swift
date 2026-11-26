@@ -130,6 +130,44 @@ class WireGuardBridge: RCTEventEmitter {
     }
   }
 
+  @objc(saveStoredConfig:label:resolver:rejecter:)
+  func saveStoredConfig(
+    configText: String,
+    label: String,
+    resolve: @escaping RCTPromiseResolveBlock,
+    reject: @escaping RCTPromiseRejectBlock
+  ) {
+    let defaults = UserDefaults.standard
+    defaults.set(configText, forKey: "india_vpn_direct_config")
+    defaults.set(label, forKey: "india_vpn_direct_label")
+    resolve(nil)
+  }
+
+  @objc(loadStoredConfig:rejecter:)
+  func loadStoredConfig(
+    resolve: @escaping RCTPromiseResolveBlock,
+    reject: @escaping RCTPromiseRejectBlock
+  ) {
+    let defaults = UserDefaults.standard
+    guard let cfg = defaults.string(forKey: "india_vpn_direct_config") else {
+      resolve(nil)
+      return
+    }
+    let label = defaults.string(forKey: "india_vpn_direct_label") ?? "India WireGuard Node"
+    resolve(["configText": cfg, "label": label])
+  }
+
+  @objc(clearStoredConfig:rejecter:)
+  func clearStoredConfig(
+    resolve: @escaping RCTPromiseResolveBlock,
+    reject: @escaping RCTPromiseRejectBlock
+  ) {
+    let defaults = UserDefaults.standard
+    defaults.removeObject(forKey: "india_vpn_direct_config")
+    defaults.removeObject(forKey: "india_vpn_direct_label")
+    resolve(nil)
+  }
+
   @objc private func handleStatusChange(_ notification: Notification) {
     guard hasListeners, let session = notification.object as? NEVPNConnection else { return }
     sendEvent(withName: "WireGuardStatusChanged", body: ["status": Self.mapStatus(session.status)])

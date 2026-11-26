@@ -86,4 +86,16 @@ describe('WireGuardTunnelService', () => {
     expect(tweaked).toContain('PersistentKeepalive = 15');
     expect(tweaked).toContain('IncludedApplications = com.pubg.imobile');
   });
+
+  it('persists and clears stored direct config across service calls', async () => {
+    const svc = new WireGuardTunnelService();
+    expect(await svc.loadStoredConfig()).toBeNull();
+    await svc.saveStoredConfig(SAMPLE_CONFIG, 'Mumbai BGMI');
+    expect(await svc.loadStoredConfig()).toEqual({
+      configText: SAMPLE_CONFIG,
+      label: 'Mumbai BGMI',
+    });
+    await svc.clearStoredConfig();
+    expect(await svc.loadStoredConfig()).toBeNull();
+  });
 });

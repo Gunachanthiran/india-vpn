@@ -1,5 +1,6 @@
 import {NativeEventEmitter, NativeModules, Platform} from 'react-native';
 import {
+  StoredDirectConfig,
   TunnelStatus,
   WireGuardKeyPair,
   WireGuardNativeBridge,
@@ -21,6 +22,7 @@ export class WireGuardTunnelService {
   private readonly emitter: NativeEventEmitter | null;
   private simulatedStatus: TunnelStatus = 'disconnected';
   private simulatedListeners = new Set<(event: WireGuardStatusEvent) => void>();
+  private memoryStoredConfig: StoredDirectConfig | null = null;
 
   constructor(bridgeOverride?: WireGuardNativeBridge) {
     const linked =
@@ -84,6 +86,27 @@ export class WireGuardTunnelService {
       return this.nativeBridge.getStatus();
     }
     return this.simulatedStatus;
+  }
+
+  async saveStoredConfig(configText: string, label: string): Promise<void> {
+    this.memoryStoredConfig = {configText, label};
+    if (this.nativeBridge?.saveStoredConfig) {
+      await this.nativeBridge.saveStoredConfig(configText, label);
+    }
+  }
+
+  async loadStoredConfig(): Promise<StoredDirectConfig | null> {
+    if (this.nativeBridge?.loadStoredConfig) {
+      return this.nativeBridge.loadStoredConfig();
+    }
+    return this.memoryStoredConfig;
+  }
+
+  async clearStoredConfig(): Promise<void> {
+    this.memoryStoredConfig = null;
+    if (this.nativeBridge?.clearStoredConfig) {
+      await this.nativeBridge.clearStoredConfig();
+    }
   }
 
   subscribeStatus(listener: (event: WireGuardStatusEvent) => void): () => void {

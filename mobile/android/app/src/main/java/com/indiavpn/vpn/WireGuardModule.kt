@@ -1,6 +1,7 @@
 package com.indiavpn.vpn
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.VpnService
 import android.os.Build
@@ -20,6 +21,9 @@ class WireGuardModule(private val reactContext: ReactApplicationContext) :
     companion object {
         private const val VPN_PERMISSION_REQUEST_CODE = 4201
         private const val STATUS_EVENT = "WireGuardStatusChanged"
+        private const val PREFS_NAME = "india_vpn_prefs"
+        private const val KEY_CONFIG = "direct_wg_config"
+        private const val KEY_LABEL = "direct_wg_label"
     }
 
     private var pendingConfig: String? = null
@@ -94,6 +98,38 @@ class WireGuardModule(private val reactContext: ReactApplicationContext) :
             Tunnel.State.TOGGLE -> "connecting"
         }
         promise.resolve(status)
+    }
+
+    @ReactMethod
+    fun saveStoredConfig(configText: String, label: String, promise: Promise) {
+        val prefs = reactContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString(KEY_CONFIG, configText)
+            .putString(KEY_LABEL, label)
+            .apply()
+        promise.resolve(null)
+    }
+
+    @ReactMethod
+    fun loadStoredConfig(promise: Promise) {
+        val prefs = reactContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val cfg = prefs.getString(KEY_CONFIG, null)
+        if (cfg == null) {
+            promise.resolve(null)
+            return
+        }
+        val map = Arguments.createMap().apply {
+            putString("configText", cfg)
+            putString("label", prefs.getString(KEY_LABEL, "India WireGuard Node"))
+        }
+        promise.resolve(map)
+    }
+
+    @ReactMethod
+    fun clearStoredConfig(promise: Promise) {
+        val prefs = reactContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().remove(KEY_CONFIG).remove(KEY_LABEL).apply()
+        promise.resolve(null)
     }
 
     private fun startVpnService(configText: String, tunnelName: String) {

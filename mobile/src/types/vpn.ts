@@ -78,9 +78,17 @@ export interface WireGuardStatusEvent {
   error?: string;
 }
 
+export interface StoredDirectConfig {
+  configText: string;
+  label: string;
+}
+
 export interface WireGuardNativeBridge {
   connect(configText: string, tunnelName: string): Promise<void>;
   disconnect(): Promise<void>;
   getStatus(): Promise<TunnelStatus>;
   generateKeyPair(): Promise<WireGuardKeyPair>;
+  saveStoredConfig?(configText: string, label: string): Promise<void>;
+  loadStoredConfig?(): Promise<StoredDirectConfig | null>;
+  clearStoredConfig?(): Promise<void>;
 }
